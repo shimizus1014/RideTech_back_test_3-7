@@ -2,9 +2,10 @@
 namespace App\Http\Controllers;
 
 use App\Models\Order;
-use App\Models\OrderItem;
-use App\Models\Product;use Illuminate\Support\Facades\DB;
-use Illuminate\Http\Request;
+use App\Models\Product;
+use Illuminate\Support\Facades\DB;
+use App\Http\Requests\StoreOrderRequest;
+use App\Http\Requests\UpdateOrderRequest; 
 
 class OrderController extends Controller
 {
@@ -19,17 +20,10 @@ class OrderController extends Controller
         return view('orders.create', compact('order','products'));
     }
 
-    public function store(Request $request)
+    public function store(StoreOrderRequest $request)
     {
-        $this->authorize('create', Order::class);
 
-        $validated = $request->validate([
-            'order_date' => ['required','date','before_or_equal:today'],
-            'items' => ['required','array','min:1'],
-            'items.*.product_id' => ['required','integer','exists:products,id'],
-            'items.*.unit_price' => ['required','integer','min:0'],
-            'items.*.qty'        => ['required','integer','min:1'],
-        ]);
+        $validated = $request->validated();
 
         $order = null;
         DB::transaction(function () use ($request, $validated, &$order) {
@@ -40,21 +34,27 @@ class OrderController extends Controller
             ]);
 
             $total = 0;
+            $prices = Product::whereIn(
+                'id',
+                collect($validated['items'])->pluck('product_id')
+            )->pluck('price', 'id');
             foreach ($validated['items'] as $it) {
-                OrderItem::create([
-                    'order_id'   => $order->id,
-                    'product_id' => $it['product_id'],
-                    'qty'        => $it['qty'],
-                    'unit_price' => $it['unit_price'],
-                ]);
-                $total += $it['qty'] * $it['unit_price'];
-            }
-            $order->update(['total_amount' => $total]);
+                        $unitPrice = (int) $prices[$it['product_id']]; // ← DB価格
+                            $order->items()->create([
+                                'product_id' => $it['product_id'],
+                                'qty'        => $it['qty'],
+                                'unit_price' => $unitPrice,
+                            ]);
+                            $total += $it['qty'] * $unitPrice;
+                        }
+                        $order->update(['total_amount' => $total]);
         });
+            
 
         return redirect()->route('orders.show', $order)
             ->with('success','注文を作成しました。');
     }
+
 
     public function edit(Order $order)
     {
@@ -64,17 +64,10 @@ class OrderController extends Controller
         return view('orders.edit', compact('order','products'));
     }
 
-    public function update(Request $request, Order $order)
+    public function update(UpdateOrderRequest $request, Order $order)
     {
-        $this->authorize('update', $order);
 
-        $validated = $request->validate([
-            'order_date' => ['required','date','before_or_equal:today'],
-            'items' => ['required','array','min:1'],
-            'items.*.product_id' => ['required','integer','exists:products,id'],
-            'items.*.unit_price' => ['required','integer','min:0'],
-            'items.*.qty'        => ['required','integer','min:1'],
-        ]);
+        $validated = $request->validated();
 
         DB::transaction(function () use ($order, $validated) {
             $order->update(['order_date' => $validated['order_date']]);
@@ -83,13 +76,18 @@ class OrderController extends Controller
             $order->items()->delete();
 
             $total = 0;
+            $prices = Product::whereIn(
+                'id',
+                collect($validated['items'])->pluck('product_id')
+            )->pluck('price', 'id');
             foreach ($validated['items'] as $it) {
+                $unitPrice = (int) $prices[$it['product_id']];
                 $order->items()->create([
                     'product_id' => $it['product_id'],
                     'qty'        => $it['qty'],
-                    'unit_price' => $it['unit_price'],
+                    'unit_price' => $unitPrice,
                 ]);
-                $total += $it['qty'] * $it['unit_price'];
+                $total += $it['qty'] * $unitPrice;
             }
             $order->update(['total_amount' => $total]);
         });
@@ -108,12 +106,18 @@ class OrderController extends Controller
     }
     public function index()
     {
-        $orders = Order::latest()->paginate(10);
+        $orders = Order::query()
+            ->with(['user', 'items'])
+            ->orderByDesc('order_date')
+            ->orderByDesc('id')
+            ->paginate(15)
+            ->withQueryString();
 
         return view('orders.index', compact('orders'));
     }
     public function show(Order $order)
     {
+        $order->load(['user', 'items.product']);
         return view('orders.show', compact('order'));
     }
 }
