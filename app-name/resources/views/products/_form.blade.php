@@ -20,6 +20,23 @@
   @error('description') <div class="text-red-600 text-sm">{{ $message }}</div> @enderror
 </div>
 
+<div class="mb-4">
+  <label class="block mb-1">商品画像</label>
+
+  <input type="file" name="image" class="border p-2 w-full">
+
+  @error('image')
+    <div class="text-red-600 text-sm">{{ $message }}</div>
+  @enderror
+
+  @if($product->image_path)
+    <div class="mt-2">
+      <img src="{{ Storage::url($product->image_path) }}"
+           class="w-32 h-32 object-cover border">
+    </div>
+  @endif
+</div>
+
 <div class="mb-6">
   <label class="block mb-1">公開日（任意）</label>
   <input type="date" name="published_at" class="border p-2"

@@ -6,6 +6,7 @@ use App\Models\Product;
 use Illuminate\Support\Facades\DB;
 use App\Http\Requests\StoreOrderRequest;
 use App\Http\Requests\UpdateOrderRequest; 
+use App\Http\Requests\SearchOrderRequest;
 
 class OrderController extends Controller
 {
@@ -104,20 +105,101 @@ class OrderController extends Controller
         return redirect()->route('orders.index')
             ->with('success','注文を削除しました。');
     }
-    public function index()
+    public function index(SearchOrderRequest $request)
     {
-        $orders = Order::query()
-            ->with(['user', 'items'])
+        $validated = $request->validated();
+
+        $filter = $request->input('filter', 'active');
+
+        $query = Order::query()
+            ->with(['user', 'items']);
+
+
+        if ($filter === 'trashed') {
+            $query->onlyTrashed();
+        } elseif ($filter === 'all') {
+            $query->withTrashed();
+        }
+    // ユーザー名
+        $query->when(
+            $validated['user'] ?? null,
+            function ($q, $user) {
+                $q->whereHas('user', function ($userQuery) use ($user) {
+                    $userQuery->where('name', 'like', "%{$user}%");
+                });
+            }
+        );
+
+    // 開始日
+        $query->when(
+            $validated['from'] ?? null,
+            fn ($q, $from) =>
+                $q->whereDate('order_date', '>=', $from)
+        );
+
+    // 終了日
+        $query->when(
+            $validated['to'] ?? null,
+            fn ($q, $to) =>
+                $q->whereDate('order_date', '<=', $to)
+        );
+
+    // 最小金額
+        $query->when(
+            $validated['min_total'] ?? null,
+            fn ($q, $min) =>
+                $q->where('total_amount', '>=', $min)
+        );
+
+    // 最大金額
+        $query->when(
+            $validated['max_total'] ?? null,
+            fn ($q, $max) =>
+                $q->where('total_amount', '<=', $max)
+        );
+
+        $orders = $query
             ->orderByDesc('order_date')
             ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
-        return view('orders.index', compact('orders'));
+        return view('orders.index', compact('orders', 'filter'));
     }
     public function show(Order $order)
     {
         $order->load(['user', 'items.product']);
         return view('orders.show', compact('order'));
     }
+    public function restore(Order $order)
+    {
+        $this->authorize('restore', $order);
+    
+        if (! $order->trashed()) {
+            abort(404);
+        }
+    
+        $order->restore();
+    
+        return redirect()
+            ->route('orders.index', ['filter' => 'trashed'])
+            ->with('success', '注文を復元しました。');
+    }
+
+    public function forceDelete(Order $order)
+    {
+        $this->authorize('forceDelete', $order);
+
+        if (! $order->trashed()) {
+            abort(404);
+        }
+
+        $order->forceDelete();
+
+        return redirect()
+            ->route('orders.index', ['filter' => 'trashed'])
+            ->with('success', '注文を完全削除しました。');
+    }
+
+
 }

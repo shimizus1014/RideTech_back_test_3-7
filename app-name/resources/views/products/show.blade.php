@@ -10,6 +10,11 @@
   @if($product->description)
     <p class="mt-4 whitespace-pre-line">{{ $product->description }}</p>
   @endif
+
+  @if($product->image_path)
+    <img src="{{ Storage::url($product->image_path) }}" width="120">
+@endif
+
   <div class="mt-6 flex gap-3">
     <a href="{{ route('products.edit', $product) }}" class="inline-block px-3 py-2 bg-blue-600 text-white rounded">編集</a>
     <form action="{{ route('products.destroy', $product) }}" method="POST" onsubmit="return confirm('削除しますか？');">

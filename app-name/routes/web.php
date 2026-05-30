@@ -42,6 +42,16 @@ Route::middleware('auth')->group(function () {
         ->only(['index','show','create','store','edit','update','destroy'])
         ->names('orders');
 
+        Route::post('/orders/{order}/restore',
+        [OrderController::class, 'restore'])
+        ->withTrashed()
+        ->name('orders.restore');
+    
+    Route::delete('/orders/{order}/force',
+        [OrderController::class, 'forceDelete'])
+        ->withTrashed()
+        ->name('orders.forceDelete');
+
     Route::get('/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('/profile', [ProfileController::class, 'update'])->name('profile.update');
     Route::delete('/profile', [ProfileController::class, 'destroy'])->name('profile.destroy');

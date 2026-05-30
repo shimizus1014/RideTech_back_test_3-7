@@ -10,7 +10,7 @@ class Product extends Model
     use HasFactory;
 
     // 量産開発では $guarded=[] も可だが、学習では $fillable を推奨
-    protected $fillable = ['name','price','description','published_at'];
+    protected $fillable = ['name','price','description','published_at','image_path'];
 
     protected $casts = [
         'published_at' => 'datetime',

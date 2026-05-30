@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 use App\Models\Product;
 use App\Http\Requests\StoreProductRequest;
 use App\Http\Requests\UpdateProductRequest;
+use Illuminate\Support\Facades\Storage;
 
 class ProductController extends Controller
 {
@@ -27,7 +28,14 @@ class ProductController extends Controller
 
     public function store(StoreProductRequest $request)
     {
-        $product = Product::create($request->validated());
+        $validated = $request->validated();
+
+        if ($request->hasFile('image')) {
+            $validated['image_path'] =
+            $request->file('image')->store('products', 'public');
+        }
+
+    $product = Product::create($validated);
 
         return redirect()
             ->route('products.show', $product)
@@ -38,11 +46,26 @@ class ProductController extends Controller
     {
         return view('products.edit', compact('product'));
     }
-
     public function update(UpdateProductRequest $request, Product $product)
     {
-        $product->update($request->validated());
-
+        $validated = $request->validated();
+    
+        // ① 画像アップロードがある場合
+        if ($request->hasFile('image')) {
+    
+            // ② 旧画像削除（存在していれば）
+            if ($product->image_path) {
+                Storage::disk('public')->delete($product->image_path);
+            }
+    
+            // ③ 新画像保存
+            $validated['image_path'] =
+                $request->file('image')->store('products', 'public');
+        }
+    
+        // ④ DB更新
+        $product->update($validated);
+    
         return redirect()
             ->route('products.show', $product)
             ->with('success', '商品を更新しました。');

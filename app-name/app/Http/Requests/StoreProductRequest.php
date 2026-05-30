@@ -18,6 +18,12 @@ class StoreProductRequest extends FormRequest
             'price'        => ['required','integer','min:0','max:10000000'],
             'description'  => ['nullable','string'],
             'published_at' => ['nullable','date','before_or_equal:today'],
+            'image'        => [
+                'nullable',
+                'image',
+                'mimes:jpg,jpeg,png,webp',
+                'max:2048',
+              ],
         ];
     }
 

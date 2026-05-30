@@ -27,6 +27,13 @@ class OrderPolicy
     }
 
     // 参考: 復元/完全削除のポリシー（今回は未使用）
-    public function restore(User $user, Order $order): bool { return false; }
-    public function forceDelete(User $user, Order $order): bool { return false; }
+    public function restore(User $user, Order $order): bool
+    {
+        return $user->id === $order->user_id;
+    }
+
+    public function forceDelete(User $user, Order $order): bool
+    {
+        return $user->id === $order->user_id;
+    }
 }
