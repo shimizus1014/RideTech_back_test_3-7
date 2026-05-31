@@ -8,7 +8,10 @@
     <x-alert type="success" class="mb-4">{{ session('success') }}</x-alert>
   @endif
 
-  <form action="{{ route('products.store') }}" method="post" novalidate>
+  <form action="{{ route('products.store') }}"
+        method="post"
+        enctype="multipart/form-data"
+        novalidate>
     @include('products._form')
   </form>
 @endsection

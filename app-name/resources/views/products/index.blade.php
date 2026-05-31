@@ -4,6 +4,12 @@
 
 @section('content')
   <h1 class="text-2xl font-bold mb-4">Products</h1>
+  <div class="mb-4 text-right">
+    <a href="{{ route('products.create') }}"
+       class="px-4 py-2 bg-blue-600 text-white rounded">
+        新規作成
+    </a>
+</div>
 
   @if ($products->count())
     <div class="grid md:grid-cols-3 gap-4">
